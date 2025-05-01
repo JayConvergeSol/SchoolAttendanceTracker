@@ -1,7 +1,87 @@
 import { SheetsIntegration } from "@shared/schema";
 
 // This file handles the interaction with Google Sheets API
-// It uses free OAuth 2.0 flow to authenticate and access user's Google Sheets
+// The SPREADSHEET_ID represents the Google Sheet where data will be stored
+const SPREADSHEET_ID = "1EaKPNOEagOcKUJ269rahOAmQDihl-lb4ol4fQbLrxvY";
+
+// Direct Save to Google Sheets function
+export async function directSaveStudentToSheet(student: any): Promise<boolean> {
+  try {
+    const values = [
+      [
+        student.studentId,
+        student.name,
+        student.email || '',
+        student.contactPhone || '',
+        student.address || '',
+        String(student.classId)
+      ]
+    ];
+    
+    // Use a direct API call to Google Sheets API using an API key or public access
+    // NOTE: This doesn't use OAuth - just a direct append to a public sheet
+    // You can set your sheet to be publicly editable for this to work
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Student:A1:append?valueInputOption=USER_ENTERED`, {
+      method: 'POST',
+      headers: {
+        // We're not using auth header here, assuming a public sheet
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        values,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to append student data: ${response.statusText}`);
+      return false;
+    }
+
+    console.log("Successfully saved student to Google Sheet:", student.name);
+    return true;
+  } catch (error) {
+    console.error('Error directly saving student to sheet:', error);
+    return false;
+  }
+}
+
+// Direct save attendance to sheet function
+export async function directSaveAttendanceToSheet(
+  date: string,
+  className: string,
+  studentId: string,
+  name: string,
+  status: string
+): Promise<boolean> {
+  try {
+    const values = [
+      [date, className, studentId, name, status]
+    ];
+    
+    // Direct API call to Google Sheets
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/attendance:A1:append?valueInputOption=USER_ENTERED`, {
+      method: 'POST',
+      headers: {
+        // We're not using auth header here, assuming a public sheet
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        values,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to append attendance data: ${response.statusText}`);
+      return false;
+    }
+
+    console.log("Successfully saved attendance to Google Sheet for:", name);
+    return true;
+  } catch (error) {
+    console.error('Error directly saving attendance to sheet:', error);
+    return false;
+  }
+}
 
 // Function to use the predefined spreadsheet for attendance tracking
 export async function createAttendanceSpreadsheet(accessToken: string, title: string): Promise<string | null> {
