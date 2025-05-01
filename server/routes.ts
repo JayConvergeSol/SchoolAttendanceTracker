@@ -205,12 +205,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create student in local storage
       const student = await storage.createStudent(studentData);
       
-      // Try to save to Google Sheets if integration exists
-      const integration = await storage.getSheetsIntegration(teacherId);
-      if (integration) {
-        try {
+      // ALWAYS use the predefined spreadsheet ID for Google Sheets
+      // This ensures we're using your specific spreadsheet instead of integration details
+      try {
+        // Hard-coded spreadsheet ID from your Google Sheet
+        const spreadsheetId = "1EaKPNOEagOcKUJ269rahOAmQDihl-lb4ol4fQbLrxvY";
+        
+        // Try to get integration for OAuth tokens
+        const integration = await storage.getSheetsIntegration(teacherId);
+        
+        // If integration exists, use its tokens
+        if (integration && integration.accessToken) {
+          // Create a temporary integration object with the hardcoded spreadsheet ID
+          const tempIntegration = {
+            ...integration,
+            sheetId: spreadsheetId
+          };
+          
           // Format student for Google Sheets
-          await appendStudentData(integration, [{
+          await appendStudentData(tempIntegration, [{
             id: student.id,
             studentId: student.studentId,
             name: student.name,
@@ -222,11 +235,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             avatar: null,
             contactInfo: {}
           }]);
-          console.log('Student data saved to Google Sheets');
-        } catch (sheetErr) {
-          console.error('Failed to save student to Google Sheets:', sheetErr);
-          // Continue even if Google Sheets fails - we've already saved to local storage
+          console.log('Student data saved to Google Sheets with ID:', spreadsheetId);
+        } else {
+          console.log('Google integration not set up yet - student saved to local storage only');
+          // We need to direct the user to set up Google integration in the Settings
         }
+      } catch (sheetErr) {
+        console.error('Failed to save student to Google Sheets:', sheetErr);
+        // Continue even if Google Sheets fails - we've already saved to local storage
       }
       
       res.status(201).json(student);
@@ -275,26 +291,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const record = await storage.createAttendanceRecord(recordData);
       
-      // Try to sync with Google Sheets if integration exists
-      const integration = await storage.getSheetsIntegration(req.session.teacherId as number);
-      if (integration && integration.accessToken) {
-        const student = await storage.getStudent(recordData.studentId);
-        if (student) {
-          // Format date for Google Sheets
-          const dateStr = new Date(recordData.date).toISOString().split('T')[0];
-          
-          // Append to Google Sheet
-          await appendAttendanceData(
-            integration,
-            dateStr,
-            classData.name,
-            [{
-              studentId: student.studentId,
-              name: student.name,
-              status: recordData.status
-            }]
-          );
+      // ALWAYS use the predefined spreadsheet ID for Google Sheets
+      try {
+        // Hard-coded spreadsheet ID from your Google Sheet
+        const spreadsheetId = "1EaKPNOEagOcKUJ269rahOAmQDihl-lb4ol4fQbLrxvY";
+        const teacherId = req.session.teacherId as number;
+        
+        // Try to get integration for OAuth tokens
+        const integration = await storage.getSheetsIntegration(teacherId);
+        
+        // If integration exists, use its tokens
+        if (integration && integration.accessToken) {
+          const student = await storage.getStudent(recordData.studentId);
+          if (student) {
+            // Format date for Google Sheets
+            const dateStr = new Date(recordData.date).toISOString().split('T')[0];
+            
+            // Create a temporary integration object with the hardcoded spreadsheet ID
+            const tempIntegration = {
+              ...integration,
+              sheetId: spreadsheetId
+            };
+            
+            // Append to Google Sheet
+            await appendAttendanceData(
+              tempIntegration,
+              dateStr,
+              classData.name,
+              [{
+                studentId: student.studentId,
+                name: student.name,
+                status: recordData.status
+              }]
+            );
+            console.log('Attendance data saved to Google Sheets with ID:', spreadsheetId);
+          }
+        } else {
+          console.log('Google integration not set up yet - attendance saved to local storage only');
         }
+      } catch (sheetErr) {
+        console.error('Failed to save attendance to Google Sheets:', sheetErr);
+        // Continue even if Google Sheets fails - we've already saved to local storage
       }
       
       res.status(201).json(record);
