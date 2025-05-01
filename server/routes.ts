@@ -207,16 +207,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create student in local storage
       const student = await storage.createStudent(studentData);
       
-      // Try to save student data directly to Google Sheets
-      try {
-        // Use the direct save method that doesn't require OAuth or API keys
-        // This works because your Google Sheet is publicly accessible with edit permissions
-        await directSaveStudentToSheet(student);
-        console.log('Student data saved directly to Google Sheets: ' + student.name);
-      } catch (sheetErr) {
-        console.error('Failed to save student to Google Sheets:', sheetErr);
-        // Continue even if Google Sheets fails - we've already saved to local storage
-      }
+      // Using Google Sheets API requires authentication and API keys, which you mentioned you want to avoid
+      // Student data is saved locally and will be available for CSV export
       
       res.status(201).json(student);
     } catch (err) {
@@ -264,27 +256,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const record = await storage.createAttendanceRecord(recordData);
       
-      // Try to save attendance data directly to Google Sheets
-      try {
-        const student = await storage.getStudent(recordData.studentId);
-        if (student) {
-          // Format date for Google Sheets
-          const dateStr = new Date(recordData.date).toISOString().split('T')[0];
-          
-          // Use our direct save method that doesn't require OAuth
-          await directSaveAttendanceToSheet(
-            dateStr,
-            classData.name,
-            student.studentId,
-            student.name,
-            recordData.status
-          );
-          console.log('Attendance data saved directly to Google Sheets for student:', student.name);
-        }
-      } catch (sheetErr) {
-        console.error('Failed to save attendance to Google Sheets:', sheetErr);
-        // Continue even if Google Sheets fails - we've already saved to local storage
-      }
+      // Using Google Sheets API requires authentication and API keys, which you mentioned you want to avoid
+      // Attendance data is saved locally and will be available for CSV export
       
       res.status(201).json(record);
     } catch (err) {
@@ -322,28 +295,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const updatedRecord = await storage.updateAttendanceRecord(recordId, status);
       
-      // Try to update in Google Sheets directly
-      try {
-        const student = await storage.getStudent(record.studentId);
-        if (student) {
-          // Format date for Google Sheets
-          const dateStr = new Date(record.date).toISOString().split('T')[0];
-          
-          // Use our direct save method that doesn't require OAuth
-          // Since Google Sheets doesn't have a simple update API, we append a new record
-          await directSaveAttendanceToSheet(
-            dateStr,
-            classData.name,
-            student.studentId,
-            student.name,
-            status
-          );
-          console.log('Updated attendance data saved directly to Google Sheets for student:', student.name);
-        }
-      } catch (sheetErr) {
-        console.error('Failed to update attendance in Google Sheets:', sheetErr);
-        // Continue even if Google Sheets fails - we've already saved to local storage
-      }
+      // Using Google Sheets API requires authentication and API keys, which you mentioned you want to avoid
+      // Updated attendance data is saved locally and will be available for CSV export
       
       res.json(updatedRecord);
     } catch (err) {
@@ -372,177 +325,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GOOGLE SHEETS INTEGRATION ROUTES
-  app.get("/api/google/auth-url", isAuthenticated, (req, res) => {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    
-    if (!clientId) {
-      return res.status(500).json({ message: "Google Client ID not configured" });
-    }
-    
-    // Get all domains from environment variable
-    const domains = (process.env.REPLIT_DOMAINS || "").split(",")[0];
-    const redirectUri = `https://${domains}/api/google/callback`;
-    
-    const url = getGoogleAuthUrl(clientId, redirectUri);
-    res.json({ url });
-  });
-
-  app.get("/api/google/callback", isAuthenticated, async (req, res) => {
+  // CSV EXPORT ROUTES
+  app.get("/api/export/students/:classId", isAuthenticated, async (req, res) => {
     try {
-      const { code } = req.query;
+      const classId = parseInt(req.params.classId);
       const teacherId = req.session.teacherId as number;
       
-      if (!code || typeof code !== "string") {
-        return res.status(400).json({ message: "Missing authorization code" });
-      }
-      
-      const clientId = process.env.GOOGLE_CLIENT_ID;
-      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-      
-      if (!clientId || !clientSecret) {
-        return res.status(500).json({ message: "Google credentials not configured" });
-      }
-      
-      // Get all domains from environment variable
-      const domains = (process.env.REPLIT_DOMAINS || "").split(",")[0];
-      const redirectUri = `https://${domains}/api/google/callback`;
-      
-      // Exchange code for tokens
-      const tokens = await exchangeCodeForTokens(code, clientId, clientSecret, redirectUri);
-      
-      if (!tokens) {
-        return res.status(500).json({ message: "Failed to exchange code for tokens" });
-      }
-      
-      // Use the predefined spreadsheet for the teacher
-      const spreadsheetId = await createAttendanceSpreadsheet(
-        tokens.accessToken,
-        "School Attendance Tracker"
-      );
-      
-      if (!spreadsheetId) {
-        return res.status(500).json({ message: "Failed to access spreadsheet" });
-      }
-      
-      // Save integration details
-      const integration = await storage.getSheetsIntegration(teacherId);
-      
-      if (integration) {
-        // Update existing integration
-        await storage.updateSheetsIntegration(
-          integration.id,
-          tokens.accessToken,
-          tokens.refreshToken
-        );
-      } else {
-        // Create new integration
-        await storage.createSheetsIntegration({
-          teacherId,
-          sheetId: spreadsheetId,
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken
-        });
-      }
-      
-      // Redirect to settings page with success message
-      res.redirect('/#/settings?integration=success');
-    } catch (err) {
-      console.error("Google callback error:", err);
-      res.redirect('/#/settings?integration=error');
-    }
-  });
-
-  app.post("/api/google/export-students", isAuthenticated, async (req, res) => {
-    try {
-      const teacherId = req.session.teacherId as number;
-      const { classId } = req.body;
-      
-      if (!classId) {
-        return res.status(400).json({ message: "Class ID required" });
-      }
-      
-      // Check if class belongs to teacher
-      const classData = await storage.getClass(parseInt(classId));
+      // Validate class exists and belongs to teacher
+      const classData = await storage.getClass(classId);
       if (!classData || classData.teacherId !== teacherId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      // Get integration info
-      const integration = await storage.getSheetsIntegration(teacherId);
-      if (!integration) {
-        return res.status(404).json({ message: "Google Sheets integration not found" });
-      }
-      
       // Get students for class
-      const students = await storage.getStudentsByClass(parseInt(classId));
+      const students = await storage.getStudentsByClass(classId);
       
-      // Export to Google Sheets - students array matches our updated interface
-      const success = await appendStudentData(integration, students);
+      // Generate CSV content
+      let csvContent = "Student ID,Name,Email,Phone,Address,Class ID\n";
       
-      if (!success) {
-        return res.status(500).json({ message: "Failed to export student data" });
-      }
+      students.forEach(student => {
+        // Escape fields that might contain commas
+        const escapedName = student.name.includes(',') ? `"${student.name}"` : student.name;
+        const escapedEmail = student.email?.includes(',') ? `"${student.email}"` : student.email || '';
+        const escapedPhone = student.contactPhone?.includes(',') ? `"${student.contactPhone}"` : student.contactPhone || '';
+        const escapedAddress = student.address?.includes(',') ? `"${student.address}"` : student.address || '';
+        
+        csvContent += `${student.studentId},${escapedName},${escapedEmail},${escapedPhone},${escapedAddress},${student.classId}\n`;
+      });
       
-      res.json({ message: "Students exported successfully" });
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=students_class_${classId}.csv`);
+      
+      res.send(csvContent);
     } catch (err) {
       res.status(500).json({ message: "Server error" });
     }
   });
-
-  app.post("/api/google/export-attendance", isAuthenticated, async (req, res) => {
+  
+  app.get("/api/export/attendance/:classId", isAuthenticated, async (req, res) => {
     try {
+      const classId = parseInt(req.params.classId);
+      const dateParam = req.query.date as string;
       const teacherId = req.session.teacherId as number;
-      const { classId, date } = req.body;
       
-      if (!classId) {
-        return res.status(400).json({ message: "Class ID required" });
-      }
-      
-      // Check if class belongs to teacher
-      const classData = await storage.getClass(parseInt(classId));
+      // Validate class exists and belongs to teacher
+      const classData = await storage.getClass(classId);
       if (!classData || classData.teacherId !== teacherId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      // Get integration info
-      const integration = await storage.getSheetsIntegration(teacherId);
-      if (!integration) {
-        return res.status(404).json({ message: "Google Sheets integration not found" });
-      }
-      
-      // Parse date or use current date
-      const attendanceDate = date ? new Date(date) : new Date();
-      const dateStr = attendanceDate.toISOString().split('T')[0];
+      // Parse date parameter or use current date
+      const date = dateParam ? new Date(dateParam) : new Date();
+      const dateStr = date.toISOString().split('T')[0];
       
       // Get attendance records
-      const records = await storage.getAttendanceByClassAndDate(parseInt(classId), attendanceDate);
+      const records = await storage.getAttendanceByClassAndDate(classId, date);
       
-      // Map attendance records to format needed for Google Sheets
-      const attendanceData = await Promise.all(
-        records.map(async (record) => {
-          const student = await storage.getStudent(record.studentId);
-          return {
-            studentId: student?.studentId || '',
-            name: student?.name || '',
-            status: record.status
-          };
-        })
-      );
+      // Generate CSV content
+      let csvContent = "Date,Class,Student ID,Name,Status\n";
       
-      // Export to Google Sheets
-      const success = await appendAttendanceData(
-        integration,
-        dateStr,
-        classData.name,
-        attendanceData
-      );
-      
-      if (!success) {
-        return res.status(500).json({ message: "Failed to export attendance data" });
+      // Collect all student info for the records
+      for (const record of records) {
+        const student = await storage.getStudent(record.studentId);
+        if (student) {
+          // Escape name if it contains commas
+          const escapedName = student.name.includes(',') ? `"${student.name}"` : student.name;
+          
+          csvContent += `${dateStr},${classData.name},${student.studentId},${escapedName},${record.status}\n`;
+        }
       }
       
-      res.json({ message: "Attendance exported successfully" });
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=attendance_class_${classId}_${dateStr}.csv`);
+      
+      res.send(csvContent);
     } catch (err) {
       res.status(500).json({ message: "Server error" });
     }
