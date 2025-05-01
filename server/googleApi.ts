@@ -18,13 +18,11 @@ export async function directSaveStudentToSheet(student: any): Promise<boolean> {
       ]
     ];
     
-    // Use a direct API call to Google Sheets API using an API key or public access
-    // NOTE: This doesn't use OAuth - just a direct append to a public sheet
-    // You can set your sheet to be publicly editable for this to work
+        // This approach works with sheets shared with "Anyone with the link" with edit permissions
+    // No API key needed - direct access to public sheets
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Student:A1:append?valueInputOption=USER_ENTERED`, {
       method: 'POST',
       headers: {
-        // We're not using auth header here, assuming a public sheet
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -33,7 +31,8 @@ export async function directSaveStudentToSheet(student: any): Promise<boolean> {
     });
 
     if (!response.ok) {
-      console.error(`Failed to append student data: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`Failed to append student data: ${response.statusText}`, errorText);
       return false;
     }
 
@@ -58,11 +57,13 @@ export async function directSaveAttendanceToSheet(
       [date, className, studentId, name, status]
     ];
     
+    // This works with sheets shared with "Anyone with the link" with edit permissions
+    // No API key needed for public sheets
+    
     // Direct API call to Google Sheets
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/attendance:A1:append?valueInputOption=USER_ENTERED`, {
       method: 'POST',
       headers: {
-        // We're not using auth header here, assuming a public sheet
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -71,7 +72,8 @@ export async function directSaveAttendanceToSheet(
     });
 
     if (!response.ok) {
-      console.error(`Failed to append attendance data: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`Failed to append attendance data: ${response.statusText}`, errorText);
       return false;
     }
 

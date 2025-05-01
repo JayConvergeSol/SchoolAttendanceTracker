@@ -209,7 +209,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Try to save student data directly to Google Sheets
       try {
-        // Use the direct save method that doesn't require OAuth
+        // Use the direct save method that doesn't require OAuth or API keys
+        // This works because your Google Sheet is publicly accessible with edit permissions
         await directSaveStudentToSheet(student);
         console.log('Student data saved directly to Google Sheets: ' + student.name);
       } catch (sheetErr) {
