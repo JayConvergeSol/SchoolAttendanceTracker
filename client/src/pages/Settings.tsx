@@ -191,7 +191,7 @@ export default function Settings() {
                 <div className="md:w-2/3 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <FormLabel>Name</FormLabel>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Name</label>
                       {isEditingProfile ? (
                         <Input value={name} onChange={(e) => setName(e.target.value)} />
                       ) : (
@@ -200,12 +200,12 @@ export default function Settings() {
                     </div>
                     
                     <div>
-                      <FormLabel>Username</FormLabel>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Username</label>
                       <div className="p-2 border rounded-md bg-gray-50">{user?.username}</div>
                     </div>
                     
                     <div>
-                      <FormLabel>Email</FormLabel>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Email</label>
                       {isEditingProfile ? (
                         <Input value={email} onChange={(e) => setEmail(e.target.value)} />
                       ) : (
@@ -214,13 +214,13 @@ export default function Settings() {
                     </div>
                     
                     <div>
-                      <FormLabel>Role</FormLabel>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Role</label>
                       <div className="p-2 border rounded-md bg-gray-50">{user?.role || "Teacher"}</div>
                     </div>
                     
                     {isEditingProfile && (
                       <div>
-                        <FormLabel>Avatar URL</FormLabel>
+                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Avatar URL</label>
                         <Input value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="https://example.com/avatar.jpg" />
                       </div>
                     )}
