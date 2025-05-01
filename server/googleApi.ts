@@ -3,60 +3,30 @@ import { SheetsIntegration } from "@shared/schema";
 // This file handles the interaction with Google Sheets API
 // It uses free OAuth 2.0 flow to authenticate and access user's Google Sheets
 
-// Function to create a new spreadsheet for attendance tracking
+// Function to use the predefined spreadsheet for attendance tracking
 export async function createAttendanceSpreadsheet(accessToken: string, title: string): Promise<string | null> {
+  // Instead of creating a new spreadsheet, use the predefined one
+  const predefinedSpreadsheetId = "1EaKPNOEagOcKUJ269rahOAmQDihl-lb4ol4fQbLrxvY";
+  
   try {
-    // Create a new spreadsheet with the Google Sheets API
-    const response = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
-      method: 'POST',
+    // Verify that we can access the spreadsheet (optional validation)
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${predefinedSpreadsheetId}?fields=sheets.properties.title`, {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        properties: {
-          title,
-        },
-        sheets: [
-          {
-            properties: {
-              title: 'Attendance',
-              gridProperties: {
-                rowCount: 1000,
-                columnCount: 20,
-              },
-            },
-          },
-          {
-            properties: {
-              title: 'Students',
-              gridProperties: {
-                rowCount: 1000,
-                columnCount: 10,
-              },
-            },
-          },
-          {
-            properties: {
-              title: 'Classes',
-              gridProperties: {
-                rowCount: 100,
-                columnCount: 5,
-              },
-            },
-          },
-        ],
-      }),
+      }
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to create spreadsheet: ${response.statusText}`);
+      console.error(`Failed to access predefined spreadsheet: ${response.statusText}`);
+      return null;
     }
-
-    const data = await response.json();
-    return data.spreadsheetId;
+    
+    // Return the predefined spreadsheet ID
+    return predefinedSpreadsheetId;
   } catch (error) {
-    console.error('Error creating spreadsheet:', error);
+    console.error('Error accessing predefined spreadsheet:', error);
     return null;
   }
 }
@@ -81,7 +51,7 @@ export async function appendAttendanceData(
       record.status
     ]);
 
-    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${integration.sheetId}/values/Attendance:A1:append?valueInputOption=USER_ENTERED`, {
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${integration.sheetId}/values/attendance:A1:append?valueInputOption=USER_ENTERED`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${integration.accessToken}`,
@@ -126,7 +96,7 @@ export async function appendStudentData(
       String(student.classId)
     ]);
 
-    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${integration.sheetId}/values/Students:A1:append?valueInputOption=USER_ENTERED`, {
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${integration.sheetId}/values/Student:A1:append?valueInputOption=USER_ENTERED`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${integration.accessToken}`,
