@@ -194,14 +194,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/students", isAuthenticated, async (req, res) => {
     try {
       const studentData = insertStudentSchema.parse(req.body);
+      const teacherId = req.session.teacherId as number;
       
       // Check if the class belongs to the authenticated teacher
       const classData = await storage.getClass(studentData.classId);
-      if (!classData || classData.teacherId !== req.session.teacherId) {
+      if (!classData || classData.teacherId !== teacherId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
+      // Create student in local storage
       const student = await storage.createStudent(studentData);
+      
+      // Try to save to Google Sheets if integration exists
+      const integration = await storage.getSheetsIntegration(teacherId);
+      if (integration) {
+        try {
+          // Format student for Google Sheets
+          await appendStudentData(integration, [{
+            id: student.id,
+            studentId: student.studentId,
+            name: student.name,
+            email: student.email,
+            contactPhone: student.contactPhone,
+            address: student.address,
+            classId: student.classId,
+            // These fields are added to match the Student schema
+            avatar: null,
+            contactInfo: {}
+          }]);
+          console.log('Student data saved to Google Sheets');
+        } catch (sheetErr) {
+          console.error('Failed to save student to Google Sheets:', sheetErr);
+          // Continue even if Google Sheets fails - we've already saved to local storage
+        }
+      }
+      
       res.status(201).json(student);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -286,6 +313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const recordId = parseInt(req.params.id);
       const { status } = req.body;
+      const teacherId = req.session.teacherId as number;
       
       if (!status || !["present", "absent", "late"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
@@ -299,11 +327,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if the class belongs to the authenticated teacher
       const classData = await storage.getClass(record.classId);
-      if (!classData || classData.teacherId !== req.session.teacherId) {
+      if (!classData || classData.teacherId !== teacherId) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
       const updatedRecord = await storage.updateAttendanceRecord(recordId, status);
+      
+      // Try to update in Google Sheets if integration exists
+      const integration = await storage.getSheetsIntegration(teacherId);
+      if (integration && integration.accessToken) {
+        const student = await storage.getStudent(record.studentId);
+        if (student) {
+          // Format date for Google Sheets
+          const dateStr = new Date(record.date).toISOString().split('T')[0];
+          
+          // Append to Google Sheet (this actually adds another record rather than updating)
+          // Google Sheets doesn't have a simple update API, so we append a new record
+          await appendAttendanceData(
+            integration,
+            dateStr,
+            classData.name,
+            [{
+              studentId: student.studentId,
+              name: student.name,
+              status: status
+            }]
+          );
+        }
+      }
+      
       res.json(updatedRecord);
     } catch (err) {
       res.status(500).json({ message: "Server error" });
@@ -374,14 +426,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to exchange code for tokens" });
       }
       
-      // Create a spreadsheet for the teacher
+      // Use the predefined spreadsheet for the teacher
       const spreadsheetId = await createAttendanceSpreadsheet(
         tokens.accessToken,
         "School Attendance Tracker"
       );
       
       if (!spreadsheetId) {
-        return res.status(500).json({ message: "Failed to create spreadsheet" });
+        return res.status(500).json({ message: "Failed to access spreadsheet" });
       }
       
       // Save integration details
@@ -436,7 +488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get students for class
       const students = await storage.getStudentsByClass(parseInt(classId));
       
-      // Export to Google Sheets
+      // Export to Google Sheets - students array matches our updated interface
       const success = await appendStudentData(integration, students);
       
       if (!success) {

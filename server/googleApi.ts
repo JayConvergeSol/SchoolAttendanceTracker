@@ -80,19 +80,21 @@ export async function appendStudentData(
     id: number,
     studentId: string,
     name: string,
-    email: string,
-    contactPhone: string,
-    address: string,
+    email: string | null,
+    contactPhone: string | null,
+    address: string | null,
     classId: number,
+    avatar?: string | null,
+    contactInfo?: unknown
   }>
 ): Promise<boolean> {
   try {
     const values = students.map(student => [
       student.studentId,
       student.name,
-      student.email,
-      student.contactPhone,
-      student.address,
+      student.email || '',
+      student.contactPhone || '',
+      student.address || '',
       String(student.classId)
     ]);
 
