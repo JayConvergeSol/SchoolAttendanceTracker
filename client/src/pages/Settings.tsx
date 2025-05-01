@@ -148,7 +148,7 @@ export default function Settings() {
           </TabsTrigger>
           <TabsTrigger value="integrations" className="flex items-center">
             <Search className="h-4 w-4 mr-2" />
-            Search Integration
+            CSV Export
           </TabsTrigger>
           <TabsTrigger value="preferences" className="flex items-center">
             <Settings2 className="h-4 w-4 mr-2" />
@@ -363,22 +363,28 @@ export default function Settings() {
           </div>
         </TabsContent>
 
-        {/* Search Integration Settings */}
+        {/* CSV Export Settings */}
         <TabsContent value="integrations">
           <Card>
             <CardHeader>
-              <CardTitle>Search Sheets Integration</CardTitle>
+              <CardTitle>CSV Export for Google Sheets</CardTitle>
               <CardDescription>
-                Connect your account to Search Sheets for data storage and synchronization
+                Export your data as CSV files that can be imported into Google Sheets
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <Alert>
                 <Info className="h-4 w-4" />
-                <AlertTitle>Why use Search Sheets?</AlertTitle>
+                <AlertTitle>How to use CSV export with Google Sheets</AlertTitle>
                 <AlertDescription>
-                  Using Search Sheets as a backend allows you to store attendance data without requiring paid Search Cloud APIs. 
-                  You'll be able to view, edit, and share your attendance data directly from Search Sheets.
+                  <ol className="list-decimal pl-4 space-y-2 mt-2">
+                    <li>Export your data using the buttons below</li>
+                    <li>Open your Google Sheet (ID: 1EaKPNOEagOcKUJ269rahOAmQDihl-lb4ol4fQbLrxvY)</li>
+                    <li>Go to File &gt; Import &gt; Upload</li>
+                    <li>Upload the CSV file you downloaded</li>
+                    <li>Select "Replace data at selected cell" or "Append to current sheet"</li>
+                    <li>Click "Import data"</li>
+                  </ol>
                 </AlertDescription>
               </Alert>
               
@@ -388,67 +394,69 @@ export default function Settings() {
                     <Search className="h-8 w-8 text-[#4285F4]" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium mb-1">Search Sheets Connection</h3>
+                    <h3 className="text-lg font-medium mb-1">Google Sheets Export</h3>
                     <p className="text-sm text-gray-500 mb-4">
-                      Connect your account to Search Sheets to automatically sync attendance records.
+                      Export your data as CSV files and manually import them into your Google Sheet
                     </p>
                     
-                    {googleAuthUrl ? (
-                      <a 
-                        href={googleAuthUrl}
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#4285F4] hover:bg-[#3367D6] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4285F4]"
-                      >
+                    <Button asChild className="bg-[#4285F4] hover:bg-[#3367D6]">
+                      <a href="https://docs.google.com/spreadsheets/d/1EaKPNOEagOcKUJ269rahOAmQDihl-lb4ol4fQbLrxvY" target="_blank" className="flex items-center">
                         <Search className="h-4 w-4 mr-2" />
-                        Connect with Search
+                        Open Your Google Sheet
                       </a>
-                    ) : (
-                      <Button disabled className="bg-[#4285F4]">
-                        <div className="animate-spin h-4 w-4 mr-2 border-2 border-t-transparent rounded-full"></div>
-                        Loading...
-                      </Button>
-                    )}
+                    </Button>
                   </div>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Integration Settings</h3>
+              <div className="p-4 border rounded-lg">
+                <h3 className="text-lg font-medium mb-4">Export Data</h3>
                 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Auto-sync attendance records</p>
-                    <p className="text-sm text-gray-500">Automatically sync attendance records to Search Sheets</p>
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Export Student Data by Class</h4>
+                    <p className="text-sm text-gray-500">Select a class to export its students as CSV</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+                      {classes.map((cls) => (
+                        <Button 
+                          key={cls.id} 
+                          variant="outline"
+                          asChild
+                        >
+                          <a href={`/api/export/students/${cls.id}`} download className="flex items-center justify-center">
+                            <span className="truncate">{cls.name}</span>
+                          </a>
+                        </Button>
+                      ))}
+                      {classes.length === 0 && (
+                        <p className="text-sm text-gray-500 col-span-3 py-2">No classes available. Add classes first.</p>
+                      )}
+                    </div>
                   </div>
-                  <Switch defaultChecked />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Sync student data</p>
-                    <p className="text-sm text-gray-500">Keep student information synchronized with Search Sheets</p>
+                  
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Export Attendance Records by Class</h4>
+                    <p className="text-sm text-gray-500">Select a class to export today's attendance as CSV</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+                      {classes.map((cls) => (
+                        <Button 
+                          key={cls.id} 
+                          variant="outline"
+                          asChild
+                        >
+                          <a href={`/api/export/attendance/${cls.id}`} download className="flex items-center justify-center">
+                            <span className="truncate">{cls.name}</span>
+                          </a>
+                        </Button>
+                      ))}
+                      {classes.length === 0 && (
+                        <p className="text-sm text-gray-500 col-span-3 py-2">No classes available. Add classes first.</p>
+                      )}
+                    </div>
                   </div>
-                  <Switch defaultChecked />
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Sync frequency</p>
-                    <p className="text-sm text-gray-500">How often to sync data with Search Sheets</p>
-                  </div>
-                  <select className="p-2 border rounded-md">
-                    <option>Immediately</option>
-                    <option>Hourly</option>
-                    <option>Daily</option>
-                    <option>Manually only</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="pt-4 border-t">
-                <Button variant="outline">
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Test Connection
-                </Button>
               </div>
             </CardContent>
           </Card>
