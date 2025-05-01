@@ -509,7 +509,7 @@ export default function Settings() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <FormLabel>Default Class</FormLabel>
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Default Class</label>
                     <select className="w-full p-2 border rounded-md">
                       <option value="">Select default class...</option>
                       {classes.map((cls) => (
@@ -521,7 +521,7 @@ export default function Settings() {
                   </div>
                   
                   <div>
-                    <FormLabel>Default Attendance Status</FormLabel>
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Default Attendance Status</label>
                     <select className="w-full p-2 border rounded-md">
                       <option value="present">Present</option>
                       <option value="absent">Absent</option>
